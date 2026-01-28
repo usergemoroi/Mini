@@ -1,6 +1,7 @@
 import logging
 import sys
 from telegram.ext import Application
+from telegram import Update
 import config
 from database import init_db
 from handlers import (
@@ -46,5 +47,4 @@ def main():
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
-    from telegram import Update
     main()
