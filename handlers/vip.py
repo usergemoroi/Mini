@@ -1,5 +1,5 @@
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, CallbackQueryHandler
 from database import get_session
 from database.models import User
 from services import UserService
@@ -50,44 +50,39 @@ async def vip_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += t(lang, 'vip_level_4')
     
     keyboard = [
-        ["🥉 VIP Bronze 99⭐️"],
-        ["🥈 VIP Silver 499⭐️"],
-        ["🥇 VIP Gold 999⭐️"],
-        ["💎 VIP Platinum 1999⭐️"],
-        [t(lang, 'nav_back')]
+        [InlineKeyboardButton("🥉 VIP Bronze 99⭐️", callback_data="buy_vip_1")],
+        [InlineKeyboardButton("🥈 VIP Silver 499⭐️", callback_data="buy_vip_2")],
+        [InlineKeyboardButton("🥇 VIP Gold 999⭐️", callback_data="buy_vip_3")],
+        [InlineKeyboardButton("💎 VIP Platinum 1999⭐️", callback_data="buy_vip_4")],
+        [InlineKeyboardButton(t(lang, 'nav_back'), callback_data="start_menu")]
     ]
     
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
     if is_callback:
         await query.edit_message_text(text=text, reply_markup=reply_markup)
     else:
         await update.message.reply_text(text=text, reply_markup=reply_markup)
 
-async def activate_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle VIP activation button"""
-    message = update.message.text
+async def buy_vip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle VIP purchase via callback"""
+    query = update.callback_query
+    await query.answer()
     
-    vip_map = {
-        "🥉 VIP Bronze 99⭐️": 1,
-        "🥈 VIP Silver 499⭐️": 2,
-        "🥇 VIP Gold 999⭐️": 3,
-        "💎 VIP Platinum 1999⭐️": 4
-    }
+    vip_level = int(query.data.split('_')[-1])
     
-    vip_level = vip_map.get(message)
-    if vip_level:
-        await send_stars_invoice(update, context, 'vip', vip_level, config.VIP_PRICES[vip_level])
+    # Don't send invoice for callback queries, use a different approach
+    # For now, show a message with instructions
+    with get_session() as session:
+        user = UserService.get_or_create_user(session, update.effective_user)
+        lang = user.language
+    
+    await query.edit_message_text(
+        text=t(lang, 'vip_payment_message', level=vip_level),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(t(lang, 'nav_back'), callback_data="vip_menu")]])
+    )
 
 def register_vip_handlers(application):
     """Register VIP handlers"""
     application.add_handler(CallbackQueryHandler(vip_menu, pattern="^vip_menu$"))
-    application.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex('🥉 VIP Bronze|🥈 VIP Silver|🥇 VIP Gold|💎 VIP Platinum'),
-        activate_vip
-    ))
-    # Message handler for reply keyboard VIP button
-    application.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex('👑 VIP'),
-        vip_menu
-    ))
+    application.add_handler(CallbackQueryHandler(buy_vip_callback, pattern="^buy_vip_"))

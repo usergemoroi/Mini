@@ -1,5 +1,5 @@
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, CallbackQueryHandler
 from database import get_session
 from database.models import User, Battlepass
 from services import UserService
@@ -11,7 +11,7 @@ import config
 async def battlepass_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show Battlepass status"""
     query = update.callback_query
-    await query.answer()
+    is_callback = query is not None
     
     with get_session() as session:
         user = UserService.get_or_create_user(session, update.effective_user)
@@ -38,26 +38,30 @@ async def battlepass_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += f"\n\n❌ Нужно {config.BATTLEPASS_PRICE} 💎 для покупки"
     
     keyboard = [
-        [t(lang, 'battlepass_buy_button')],
-        [t(lang, 'nav_back')]
+        [InlineKeyboardButton(t(lang, 'battlepass_buy_button'), callback_data="buy_battlepass")],
+        [InlineKeyboardButton(t(lang, 'nav_back'), callback_data="start_menu")]
     ]
     
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
-    if query:
+    if is_callback:
         await query.edit_message_text(text=text, reply_markup=reply_markup)
     else:
         await update.message.reply_text(text=text, reply_markup=reply_markup)
 
-async def buy_battlepass(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Buy Battlepass"""
+async def buy_battlepass_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Buy Battlepass via callback"""
+    query = update.callback_query
+    await query.answer()
+    
     with get_session() as session:
         user = UserService.get_or_create_user(session, update.effective_user)
         lang = user.language
         
         if user.crystals < config.BATTLEPASS_PRICE:
-            await update.message.reply_text(
-                t(lang, 'shop_not_enough_crystals')
+            await query.edit_message_text(
+                text=t(lang, 'shop_not_enough_crystals'),
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(t(lang, 'nav_back'), callback_data="battlepass_menu")]])
             )
             return
         
@@ -83,37 +87,10 @@ async def buy_battlepass(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bp.current_progress = 0
             bp.rewards_claimed = {}
         
-        await update.message.reply_text(
-            "✅ Боевой пропуск активирован!\n\n"
-            f"Действует до: {bp.expiration_date.strftime('%d.%m.%Y')}\n\n"
-            "Заходите ежедневно для прогресса!"
+        await query.edit_message_text(
+            text=f"✅ Боевой пропуск активирован!\n\nДействует до: {bp.expiration_date.strftime('%d.%m.%Y')}\n\nЗаходите ежедневно для прогресса!",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(t(lang, 'nav_back'), callback_data="start_menu")]])
         )
-
-async def claim_battlepass_rewards(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Claim Battlepass rewards"""
-    with get_session() as session:
-        user = UserService.get_or_create_user(session, update.effective_user)
-        lang = user.language
-        
-        bp = session.query(Battlepass).filter_by(user_id=user.id).first()
-        
-        if not bp or not bp.is_active:
-            await update.message.reply_text(
-                t(lang, 'battlepass_not_active')
-            )
-            return
-        
-        # Simple reward logic: give rewards based on progress
-        if bp.current_progress >= 7:  # Weekly reward
-            UserService.add_gold(session, user, 300)
-            await update.message.reply_text(
-                f"🎁 Еженедельная награда получена!\n\n"
-                f"💎 +300 Золота"
-            )
-        else:
-            await update.message.reply_text(
-                "⏰ Еженедельная награда доступна через 7 дней"
-            )
 
 def register_battlepass_handlers(application):
     """Register Battlepass handlers"""
