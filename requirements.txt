@@ -4,4 +4,3 @@ psycopg2-binary==2.9.9
 sqlalchemy==2.0.45
 alembic==1.13.1
 APScheduler==3.10.4
-python==3.11.11
