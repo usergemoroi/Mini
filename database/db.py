@@ -8,7 +8,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def init_db():
-    from .models import User, Dragon, Egg, Plant, Garden
+    from .models import User, Dragon, Egg, Plant, Garden, Battlepass, Purchase, CryptoTransaction
     Base.metadata.create_all(bind=engine)
 
 @contextmanager
