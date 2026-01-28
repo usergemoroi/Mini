@@ -119,6 +119,6 @@ def register_battlepass_handlers(application):
     """Register Battlepass handlers"""
     application.add_handler(CallbackQueryHandler(battlepass_menu, pattern="^battlepass_menu$"))
     application.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex('Боевой пропуск|Battle Pass'), 
-        buy_battlepass
+        filters.TEXT & filters.Regex('🎖️ Боевой пропуск|🎖️ Battlepass'),
+        battlepass_menu
     ))

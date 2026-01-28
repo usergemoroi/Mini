@@ -4,6 +4,8 @@ from database import get_session
 from services import UserService
 from localization import t
 from datetime import datetime
+from shop.shop_handler import shop_menu
+from handlers.vip import vip_menu
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with get_session() as session:
@@ -125,4 +127,21 @@ def register_start_handlers(application):
     application.add_handler(MessageHandler(
         filters.TEXT & (filters.Regex('Главное меню|Main Menu') | filters.Regex('Назад|Back')),
         back_to_menu
+    ))
+    # Message handlers for reply keyboard buttons
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex('🛒 Магазин|🛒 Shop'),
+        shop_menu
+    ))
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex('👑 VIP'),
+        vip_menu
+    ))
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex('🌐 Язык|🌐 Language'),
+        language_command
+    ))
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex('❓ Справка|❓ Help'),
+        help_command
     ))

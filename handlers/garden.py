@@ -1,20 +1,25 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 from database import get_session
 from services import UserService, GardenService
 from utils.helpers import format_time_remaining
 from utils.constants import PLANTS
+from localization import t
 
 async def garden_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    is_callback = query is not None
+    
+    if is_callback:
+        await query.answer()
     
     with get_session() as session:
         user = UserService.get_or_create_user(session, update.effective_user)
+        lang = user.language
         garden = GardenService.get_user_garden(session, user)
         plants = GardenService.get_user_plants(session, user)
         
-        text = f"🌱 **{garden.name}**\n\n"
+        text = t(lang, 'garden_title')
         text += f"_{garden.description}_\n\n"
         text += f"🎨 Theme: {garden.theme}\n"
         text += f"💰 Gold: {user.gold:,}\n\n"
@@ -32,21 +37,28 @@ async def garden_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if len(plants) > 10:
                 text += f"\n...and {len(plants) - 10} more plants growing!"
         else:
-            text += "🌱 Your garden is empty. Plant some crops!"
+            text = t(lang, 'garden_empty')
     
     keyboard = [
         [InlineKeyboardButton("🌱 Plant Crops", callback_data="plant_menu")],
         [InlineKeyboardButton("🌾 Harvest Ready Plants", callback_data="harvest_menu")],
         [InlineKeyboardButton("🔄 Check Plants", callback_data="check_plants")],
-        [InlineKeyboardButton("« Back", callback_data="start_menu")]
+        [InlineKeyboardButton(t(lang, 'garden_back'), callback_data="start_menu")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await query.edit_message_text(
-        text=text,
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
+    if is_callback:
+        await query.edit_message_text(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 async def plant_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -255,3 +267,8 @@ def register_garden_handlers(application):
     application.add_handler(CallbackQueryHandler(check_plants, pattern="^check_plants$"))
     application.add_handler(CallbackQueryHandler(harvest_menu, pattern="^harvest_menu$"))
     application.add_handler(CallbackQueryHandler(harvest_all, pattern="^harvest_all$"))
+    # Message handlers for reply keyboard buttons
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex('🌱 Сад|🌱 Garden'),
+        garden_menu
+    ))

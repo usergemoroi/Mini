@@ -1,27 +1,28 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 from database import get_session
 from services import UserService, EggService, DragonService
 from utils.helpers import format_time_remaining, can_claim_daily_egg
 from utils.constants import EGG_TYPES, RARITIES
+from localization import t
 from datetime import datetime
 
 async def eggs_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    is_callback = query is not None
+    
+    if is_callback:
+        await query.answer()
     
     with get_session() as session:
         user = UserService.get_or_create_user(session, update.effective_user)
+        lang = user.language
         eggs = EggService.get_user_eggs(session, user)
         
         if not eggs:
-            text = (
-                "🥚 **Your Egg Collection**\n\n"
-                "You don't have any eggs yet!\n\n"
-                "💡 Claim your free daily egg or purchase eggs from the shop."
-            )
+            text = t(lang, 'eggs_empty')
         else:
-            text = "🥚 **Your Egg Collection**\n\n"
+            text = t(lang, 'eggs_title', count=len(eggs))
             for i, egg in enumerate(eggs, 1):
                 emoji = EGG_TYPES[egg.egg_type]['emoji']
                 rarity_emoji = RARITIES[egg.rarity]['emoji']
@@ -35,15 +36,22 @@ async def eggs_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🎁 Claim Daily Free Egg", callback_data="claim_daily_egg")],
         [InlineKeyboardButton("🛒 Buy Eggs", callback_data="shop_eggs")],
         [InlineKeyboardButton("🔄 Check Eggs", callback_data="check_eggs")],
-        [InlineKeyboardButton("« Back", callback_data="start_menu")]
+        [InlineKeyboardButton(t(lang, 'eggs_back'), callback_data="start_menu")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await query.edit_message_text(
-        text=text,
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
+    if is_callback:
+        await query.edit_message_text(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 async def claim_daily_egg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -262,3 +270,8 @@ def register_egg_handlers(application):
     application.add_handler(CallbackQueryHandler(hatch_egg, pattern="^hatch_egg_"))
     application.add_handler(CallbackQueryHandler(shop_eggs, pattern="^shop_eggs$"))
     application.add_handler(CallbackQueryHandler(buy_egg, pattern="^buy_egg_"))
+    # Message handlers for reply keyboard buttons
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex('🥚 Яйца|🥚 Eggs'),
+        eggs_menu
+    ))
