@@ -1,0 +1,1 @@
+from .shop_handler import register_shop_handlers

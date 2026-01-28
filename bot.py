@@ -11,6 +11,11 @@ from handlers import (
     register_garden_handlers,
     register_profile_handlers
 )
+from handlers.vip import register_vip_handlers
+from handlers.battlepass import register_battlepass_handlers
+from shop import register_shop_handlers
+from payment.stars_handler import register_stars_handlers
+from payment.crypto_handler import register_crypto_handlers
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -38,6 +43,11 @@ def main():
     register_egg_handlers(application)
     register_garden_handlers(application)
     register_profile_handlers(application)
+    register_vip_handlers(application)
+    register_battlepass_handlers(application)
+    register_shop_handlers(application)
+    register_stars_handlers(application)
+    register_crypto_handlers(application)
     logger.info("All handlers registered!")
     
     logger.info("Starting bot...")

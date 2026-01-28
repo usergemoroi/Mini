@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .db import Base
@@ -12,8 +12,14 @@ class User(Base):
     first_name = Column(String(255))
     gold = Column(Integer, default=1000)
     crystals = Column(Integer, default=50)
-    vip_level = Column(String(50), default='Free')
+    language = Column(String(5), default='ru')
+    vip_level = Column(Integer, default=0)
+    vip_expiration = Column(DateTime, nullable=True)
+    vip_auto_renew = Column(Boolean, default=False)
+    vip_subscription_id = Column(String(255), nullable=True)
     last_daily_egg = Column(DateTime, nullable=True)
+    last_daily_gold_claim = Column(DateTime, nullable=True)
+    last_premium_seeds_claim = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -21,6 +27,9 @@ class User(Base):
     eggs = relationship('Egg', back_populates='owner', cascade='all, delete-orphan')
     plants = relationship('Plant', back_populates='owner', cascade='all, delete-orphan')
     garden = relationship('Garden', back_populates='owner', uselist=False, cascade='all, delete-orphan')
+    battlepass = relationship('Battlepass', back_populates='user', uselist=False, cascade='all, delete-orphan')
+    purchases = relationship('Purchase', back_populates='user', cascade='all, delete-orphan')
+    crypto_transactions = relationship('CryptoTransaction', back_populates='user', cascade='all, delete-orphan')
 
 class Dragon(Base):
     __tablename__ = 'dragons'
@@ -81,3 +90,52 @@ class Garden(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     owner = relationship('User', back_populates='garden')
+
+class Battlepass(Base):
+    __tablename__ = 'battlepasses'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, unique=True)
+    season_number = Column(Integer, default=1)
+    is_active = Column(Boolean, default=False)
+    purchase_date = Column(DateTime, nullable=True)
+    expiration_date = Column(DateTime, nullable=True)
+    current_progress = Column(Integer, default=0)  # Days logged in
+    rewards_claimed = Column(JSON, default=dict)  # Day numbers claimed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    user = relationship('User', back_populates='battlepass')
+
+class Purchase(Base):
+    __tablename__ = 'purchases'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    payment_type = Column(String(50))  # 'stars', 'crypto'
+    amount_stars = Column(Integer, nullable=True)
+    amount_crypto = Column(Float, nullable=True)
+    currency = Column(String(10), nullable=True)  # BTC, ETH, USDT, TON
+    item_type = Column(String(50))  # 'crystals', 'vip', 'battlepass'
+    item_data = Column(JSON, default=dict)  # Details of purchased item
+    status = Column(String(20), default='pending')  # pending, completed, failed, cancelled
+    telegram_payment_charge_id = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    
+    user = relationship('User', back_populates='purchases')
+
+class CryptoTransaction(Base):
+    __tablename__ = 'crypto_transactions'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    invoice_id = Column(String(255), unique=True, nullable=False)
+    currency = Column(String(10), nullable=False)  # BTC, ETH, USDT, TON
+    amount = Column(Float, nullable=False)
+    address = Column(Text, nullable=True)
+    status = Column(String(20), default='pending')  # pending, completed, failed, cancelled
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    confirmed_at = Column(DateTime, nullable=True)
+    
+    user = relationship('User', back_populates='crypto_transactions')
