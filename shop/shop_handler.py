@@ -10,7 +10,10 @@ import config
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show main shop menu"""
     query = update.callback_query
-    await query.answer()
+    is_callback = query is not None
+    
+    if is_callback:
+        await query.answer()
     
     with get_session() as session:
         user = UserService.get_or_create_user(session, update.effective_user)
@@ -33,7 +36,10 @@ async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
-    await query.edit_message_text(text=text, reply_markup=reply_markup)
+    if is_callback:
+        await query.edit_message_text(text=text, reply_markup=reply_markup)
+    else:
+        await update.message.reply_text(text=text, reply_markup=reply_markup)
 
 async def show_eggs_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show eggs shop"""
@@ -196,3 +202,8 @@ def register_shop_handlers(application):
     application.add_handler(CallbackQueryHandler(show_crystals_shop, pattern="^shop_crystals$"))
     application.add_handler(CallbackQueryHandler(show_vip_shop, pattern="^shop_vip$"))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex('🥚|🔵|💎'), handle_shop_purchase))
+    # Message handler for reply keyboard shop button
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex('🛒 Магазин|🛒 Shop'),
+        shop_menu
+    ))

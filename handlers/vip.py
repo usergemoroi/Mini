@@ -11,7 +11,10 @@ import config
 async def vip_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show VIP status and options"""
     query = update.callback_query
-    await query.answer()
+    is_callback = query is not None
+    
+    if is_callback:
+        await query.answer()
     
     with get_session() as session:
         user = UserService.get_or_create_user(session, update.effective_user)
@@ -56,7 +59,7 @@ async def vip_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
-    if query:
+    if is_callback:
         await query.edit_message_text(text=text, reply_markup=reply_markup)
     else:
         await update.message.reply_text(text=text, reply_markup=reply_markup)
@@ -79,4 +82,12 @@ async def activate_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def register_vip_handlers(application):
     """Register VIP handlers"""
     application.add_handler(CallbackQueryHandler(vip_menu, pattern="^vip_menu$"))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex('VIP'), activate_vip))
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex('🥉 VIP Bronze|🥈 VIP Silver|🥇 VIP Gold|💎 VIP Platinum'),
+        activate_vip
+    ))
+    # Message handler for reply keyboard VIP button
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex('👑 VIP'),
+        vip_menu
+    ))

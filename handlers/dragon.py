@@ -1,49 +1,50 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 from database import get_session
 from services import UserService, DragonService
 from utils.helpers import format_dragon_stats
 from utils.constants import RARITIES
+from localization import t
 
 async def dragons_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    is_callback = query is not None
+    
+    if is_callback:
+        await query.answer()
     
     with get_session() as session:
         user = UserService.get_or_create_user(session, update.effective_user)
+        lang = user.language
         dragons = DragonService.get_user_dragons(session, user)
         
         if not dragons:
-            text = (
-                "🐉 **Your Dragon Collection**\n\n"
-                "You don't have any dragons yet!\n\n"
-                "💡 Hatch some eggs to get your first dragon."
-            )
+            text = t(lang, 'dragons_empty')
             keyboard = [
-                [InlineKeyboardButton("🥚 Go to Eggs", callback_data="eggs_menu")],
-                [InlineKeyboardButton("« Back", callback_data="start_menu")]
+                [InlineKeyboardButton(t(lang, 'eggs_go_shop'), callback_data="eggs_menu")],
+                [InlineKeyboardButton(t(lang, 'dragons_back'), callback_data="start_menu")]
             ]
         else:
-            text = f"🐉 **Your Dragon Collection** ({len(dragons)} dragons)\n\n"
+            text = t(lang, 'dragons_title', count=len(dragons))
             
             rarity_counts = {}
             for dragon in dragons:
                 rarity_counts[dragon.rarity] = rarity_counts.get(dragon.rarity, 0) + 1
             
-            text += "📊 **Collection Stats:**\n"
+            text += t(lang, 'dragons_collection_stats')
             for rarity in ['Common', 'Rare', 'Epic', 'Legendary', 'Mythic']:
                 count = rarity_counts.get(rarity, 0)
                 if count > 0:
                     text += f"{RARITIES[rarity]['emoji']} {rarity}: {count}\n"
             
-            text += "\n**Your Dragons:**\n"
+            text += t(lang, 'dragons_list')
             for i, dragon in enumerate(dragons[:10], 1):
                 hunger_bar = "🟩" * (dragon.hunger // 20) + "⬜" * (5 - dragon.hunger // 20)
                 text += f"\n{i}. {RARITIES[dragon.rarity]['emoji']} **{dragon.name}** (Lv.{dragon.level})\n"
                 text += f"   Hunger: {hunger_bar} {dragon.hunger}%\n"
             
             if len(dragons) > 10:
-                text += f"\n...and {len(dragons) - 10} more dragons!"
+                text += t(lang, 'dragons_more', count=len(dragons) - 10)
             
             keyboard = []
             for dragon in dragons[:5]:
@@ -55,17 +56,24 @@ async def dragons_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ])
             
             if len(dragons) > 5:
-                keyboard.append([InlineKeyboardButton("📋 View All Dragons", callback_data="dragons_list")])
+                keyboard.append([InlineKeyboardButton(t(lang, 'dragons_view_all'), callback_data="dragons_list")])
             
-            keyboard.append([InlineKeyboardButton("« Back", callback_data="start_menu")])
+            keyboard.append([InlineKeyboardButton(t(lang, 'dragons_back'), callback_data="start_menu")])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await query.edit_message_text(
-        text=text,
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
+    if is_callback:
+        await query.edit_message_text(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 async def view_dragon(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -195,3 +203,8 @@ def register_dragon_handlers(application):
     application.add_handler(CallbackQueryHandler(view_dragon, pattern="^view_dragon_"))
     application.add_handler(CallbackQueryHandler(feed_dragon, pattern="^feed_dragon_"))
     application.add_handler(CallbackQueryHandler(dragons_list, pattern="^dragons_list$"))
+    # Message handlers for reply keyboard buttons
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex('🐉 Драконы|🐉 Dragons'),
+        dragons_menu
+    ))
