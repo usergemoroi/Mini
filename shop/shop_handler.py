@@ -1,5 +1,5 @@
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, CallbackQueryHandler
 from database import get_session
 from database.models import User
 from services import UserService
@@ -27,14 +27,14 @@ async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += t(lang, 'shop_crypto_category')
     
     keyboard = [
-        [t(lang, 'shop_eggs_category')],
-        [t(lang, 'shop_crystals_category')],
-        [t(lang, 'shop_vip_category')],
-        [t(lang, 'shop_battlepass_category')],
-        [t(lang, 'nav_back')]
+        [InlineKeyboardButton(t(lang, 'shop_eggs_category'), callback_data="shop_eggs")],
+        [InlineKeyboardButton(t(lang, 'shop_crystals_category'), callback_data="shop_crystals")],
+        [InlineKeyboardButton(t(lang, 'shop_vip_category'), callback_data="shop_vip")],
+        [InlineKeyboardButton(t(lang, 'shop_battlepass_category'), callback_data="battlepass_menu")],
+        [InlineKeyboardButton(t(lang, 'nav_back'), callback_data="start_menu")]
     ]
     
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
     if is_callback:
         await query.edit_message_text(text=text, reply_markup=reply_markup)
@@ -43,6 +43,10 @@ async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_eggs_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show eggs shop"""
+    query = update.callback_query
+    if query:
+        await query.answer()
+        
     with get_session() as session:
         user = UserService.get_or_create_user(session, update.effective_user)
         lang = user.language
@@ -57,22 +61,26 @@ async def show_eggs_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += t(lang, 'shop_eggs_legendary', crystals=500)
     
     keyboard = [
-        ["🥚 500 💰"],
-        ["🔵 2000 💰"],
-        ["💎 200 💎"],
-        ["🌟 500 💎"],
-        [t(lang, 'nav_back')]
+        [InlineKeyboardButton("🥚 500 💰", callback_data="buy_egg_regular_500_0")],
+        [InlineKeyboardButton("🔵 2000 💰", callback_data="buy_egg_rare_2000_0")],
+        [InlineKeyboardButton("💎 200 💎", callback_data="buy_egg_premium_0_200")],
+        [InlineKeyboardButton("🌟 500 💎", callback_data="buy_egg_legendary_0_500")],
+        [InlineKeyboardButton(t(lang, 'nav_back'), callback_data="shop_main")]
     ]
     
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
-    if update.callback_query:
-        await update.callback_query.edit_message_text(text=text, reply_markup=reply_markup)
+    if query:
+        await query.edit_message_text(text=text, reply_markup=reply_markup)
     else:
         await update.message.reply_text(text=text, reply_markup=reply_markup)
 
 async def show_crystals_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show crystals shop"""
+    query = update.callback_query
+    if query:
+        await query.answer()
+        
     with get_session() as session:
         user = UserService.get_or_create_user(session, update.effective_user)
         lang = user.language
@@ -87,17 +95,17 @@ async def show_crystals_shop(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text += t(lang, 'shop_2700_crystals')
     
     keyboard = [
-        ["💎 100 ⭐️"],
-        ["💎 500 ⭐️"],
-        ["💎 1200 ⭐️"],
-        ["💎 2700 ⭐️"],
-        [t(lang, 'nav_back')]
+        [InlineKeyboardButton("💎 100 ⭐️", callback_data="purchase_crystals_100")],
+        [InlineKeyboardButton("💎 500 ⭐️", callback_data="purchase_crystals_500")],
+        [InlineKeyboardButton("💎 1200 ⭐️", callback_data="purchase_crystals_1200")],
+        [InlineKeyboardButton("💎 2700 ⭐️", callback_data="purchase_crystals_2700")],
+        [InlineKeyboardButton(t(lang, 'nav_back'), callback_data="shop_main")]
     ]
     
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
-    if update.callback_query:
-        await update.callback_query.edit_message_text(text=text, reply_markup=reply_markup)
+    if query:
+        await query.edit_message_text(text=text, reply_markup=reply_markup)
     else:
         await update.message.reply_text(text=text, reply_markup=reply_markup)
 

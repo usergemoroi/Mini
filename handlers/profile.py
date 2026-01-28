@@ -1,5 +1,5 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters, CommandHandler
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 from database import get_session
 from database.models import User, Battlepass
 from services import UserService
@@ -64,8 +64,8 @@ async def profile_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if count > 0:
                     text += f"{RARITIES[rarity]['emoji']} {rarity}: {count}\n"
     
-    keyboard = [[t(lang, 'nav_start')]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    keyboard = [[InlineKeyboardButton(t(lang, 'nav_back'), callback_data="start_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
     if query:
         await query.edit_message_text(
@@ -85,8 +85,4 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def register_profile_handlers(application):
     application.add_handler(CommandHandler("profile", profile_command))
-    application.add_handler(CallbackQueryHandler(profile_menu, pattern="^profile_menu$"))
-    application.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex('Профиль|Profile'),
-        profile_menu
-    ))
+    application.add_handler(CallbackQueryHandler(profile_menu, pattern="^profile_menu$"
